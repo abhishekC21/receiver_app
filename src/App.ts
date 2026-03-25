@@ -1,49 +1,49 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-type ButtonData = {
-  id: number;
-  name: string;
-  sentAt: number;
+type UsbMessage = {
+  payload: string | null;
+  forwardedAt: number;
+  receivedAt: number;
 };
 
 function App() {
-  const socketRef = useRef<WebSocket | null>(null);
-  const [data, setData] = useState<ButtonData | null>(null);
-  const [latency, setLatency] = useState<number>(0);
+  const [data, setData] = useState<UsbMessage | null>(null);
+  const [status, setStatus] = useState("Waiting for USB data...");
 
   useEffect(() => {
-    socketRef.current = new WebSocket("ws://192.168.1.10:8000/ws");
+    const loadLatestMessage = async () => {
+      try {
+        const response = await fetch("http://localhost:3001/api/usb-message");
+        const result = await response.json();
 
-    socketRef.current.onopen = () => {
-      console.log("Connected to server");
+        if (result) {
+          setData(result);
+          setStatus("USB data received");
+        }
+      } catch {
+        setStatus("Receiver server not reachable");
+      }
     };
 
-    socketRef.current.onmessage = (event) => {
-      const received = JSON.parse(event.data);
+    loadLatestMessage();
+    const intervalId = setInterval(loadLatestMessage, 1000);
 
-      const delay = performance.now() - received.sentAt;
-
-      setData(received);
-      setLatency(delay);
-    };
-
-    return () => {
-      socketRef.current?.close();
-    };
+    return () => clearInterval(intervalId);
   }, []);
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Receiver App</h2>
+    <div style={{ padding: 20, fontFamily: "sans-serif" }}>
+      <h2>USB Receiver App</h2>
+      <p>{status}</p>
 
       {data ? (
         <div>
-          <p><b>Button ID:</b> {data.id}</p>
-          <p><b>Button Name:</b> {data.name}</p>
-          <p><b>Latency:</b> {latency.toFixed(2)} ms</p>
+          <p><b>Payload:</b> {data.payload}</p>
+          <p><b>Forwarded At:</b> {new Date(data.forwardedAt).toLocaleString()}</p>
+          <p><b>Received At:</b> {new Date(data.receivedAt).toLocaleString()}</p>
         </div>
       ) : (
-        <p>Waiting for button click...</p>
+        <p>No USB message received yet.</p>
       )}
     </div>
   );
