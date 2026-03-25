@@ -50,3 +50,35 @@ function App() {
 }
 
 export default App;
+
+
+
+
+server.js
+const express = require("express");
+const cors = require("cors");
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+let latestMessage = null;
+
+app.post("/api/usb-message", (req, res) => {
+  latestMessage = {
+    payload: req.body?.payload ?? null,
+    forwardedAt: req.body?.forwardedAt ?? Date.now(),
+    receivedAt: Date.now(),
+  };
+
+  console.log("USB message received:", latestMessage);
+  res.json({ ok: true });
+});
+
+app.get("/api/usb-message", (_req, res) => {
+  res.json(latestMessage);
+});
+
+app.listen(3001, "0.0.0.0", () => {
+  console.log("USB receiver server running on http://0.0.0.0:3001");
+});
